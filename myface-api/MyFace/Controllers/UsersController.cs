@@ -2,6 +2,9 @@
 using MyFace.Models.Request;
 using MyFace.Models.Response;
 using MyFace.Repositories;
+using System;
+using Microsoft.AspNetCore.Cryptography.KeyDerivation;
+using System.Text;
 
 namespace MyFace.Controllers
 {
@@ -15,7 +18,7 @@ namespace MyFace.Controllers
         {
             _users = users;
         }
-        
+
         [HttpGet("")]
         public ActionResult<UserListResponse> Search([FromQuery] UserSearchRequest searchRequest)
         {
@@ -34,11 +37,31 @@ namespace MyFace.Controllers
         [HttpPost("create")]
         public IActionResult Create([FromBody] CreateUserRequest newUser)
         {
+            string authorizationHeader = Request.Headers["Authorization"];
+
+            if (authorizationHeader != null && authorizationHeader.StartsWith("Basic"))
+            {
+                string encodedUsernamePassword = authorizationHeader.Substring("Basic ".Length).Trim();
+                Encoding encoding = Encoding.GetEncoding("iso-8859-1");
+                string usernamePassword = encoding.GetString(Convert.FromBase64String(encodedUsernamePassword));
+                
+                int seperatorIndex = usernamePassword.IndexOf(':');
+
+                string username = usernamePassword.Substring(0, seperatorIndex);
+                string password = usernamePassword.Substring(seperatorIndex + 1);
+
+            }
+            else
+            {
+                throw new Exception("The authorization header is either empty or isn't Basic.");
+            }
+
+
             if (!ModelState.IsValid)
             {
                 return BadRequest(ModelState);
             }
-            
+
             var user = _users.Create(newUser);
 
             var url = Url.Action("GetById", new { id = user.Id });
@@ -57,7 +80,7 @@ namespace MyFace.Controllers
             var user = _users.Update(id, update);
             return new UserResponse(user);
         }
-        
+
         [HttpDelete("{id}")]
         public IActionResult Delete([FromRoute] int id)
         {

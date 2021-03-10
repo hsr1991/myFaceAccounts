@@ -4,6 +4,7 @@ using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using MyFace.Models.Database;
 using MyFace.Models.Request;
+using Microsoft.AspNetCore.Cryptography.KeyDerivation;
 
 namespace MyFace.Repositories
 {
@@ -14,6 +15,7 @@ namespace MyFace.Repositories
         int Count(PostSearchRequest search);
         int CountFeed(FeedSearchRequest searchRequest);
         Post GetById(int id);
+        Post GetByUsername(string Username);
         Post Create(CreatePostRequest post);
         Post Update(int id, UpdatePostRequest update);
         void Delete(int id);

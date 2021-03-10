@@ -3,6 +3,11 @@ using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using MyFace.Models.Database;
 using MyFace.Models.Request;
+using System;
+using System.Security.Cryptography;
+using Microsoft.AspNetCore.Cryptography.KeyDerivation;
+
+
 
 namespace MyFace.Repositories
 {
@@ -12,6 +17,7 @@ namespace MyFace.Repositories
         int Count(UserSearchRequest search);
         User GetById(int id);
         User Create(CreateUserRequest newUser);
+        User GetByUsername(string Username);
         User Update(int id, UpdateUserRequest update);
         void Delete(int id);
     }
@@ -58,8 +64,34 @@ namespace MyFace.Repositories
                 .Single(user => user.Id == id);
         }
 
+         public User GetByUsername(string username)
+        {
+            return _context.Users
+                .FirstOrDefault(user => username == user.Username);
+        }
+
+
         public User Create(CreateUserRequest newUser)
         {
+            var password = newUser.Password;
+
+            byte[] salt = new byte[128 / 8];
+            using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(salt);
+            }
+            string convertedSalt = Convert.ToBase64String(salt);
+
+
+            // derive a 256-bit subkey (use HMACSHA1 with 10,000 iterations)
+            string hashed = Convert.ToBase64String(KeyDerivation.Pbkdf2(
+                password: password,
+                salt: salt,
+                prf: KeyDerivationPrf.HMACSHA1,
+                iterationCount: 10000,
+                numBytesRequested: 256 / 8));
+            Console.WriteLine(hashed);
+            Console.WriteLine(convertedSalt);
             var insertResponse = _context.Users.Add(new User
             {
                 FirstName = newUser.FirstName,
@@ -68,6 +100,8 @@ namespace MyFace.Repositories
                 Username = newUser.Username,
                 ProfileImageUrl = newUser.ProfileImageUrl,
                 CoverImageUrl = newUser.CoverImageUrl,
+                HashedPassword = hashed,
+                Salt = convertedSalt
             });
             _context.SaveChanges();
 
